@@ -30,7 +30,7 @@ void VRP::loadData(const std::string &filename)
     bool customerSection = false;
     bool headerSkipped = false;
 
-    // Process the file line by line.
+    // Process file line by line.
     while (std::getline(infile, line))
     {
         std::string trimmedLine = trim(line);
@@ -39,7 +39,7 @@ void VRP::loadData(const std::string &filename)
             continue; // Skip empty lines.
         }
 
-        // Detect start of CUSTOMER section.
+        // Detect the start of the CUSTOMER section.
         if (!customerSection)
         {
             if (trimmedLine.find("CUSTOMER") != std::string::npos)
@@ -49,7 +49,7 @@ void VRP::loadData(const std::string &filename)
             continue; // Skip lines until CUSTOMER section.
         }
 
-        // Skip the header line in the CUSTOMER section.
+        // Skip header line in CUSTOMER section.
         if (!headerSkipped)
         {
             if (trimmedLine.find("CUST NO") != std::string::npos)
@@ -60,8 +60,7 @@ void VRP::loadData(const std::string &filename)
         }
 
         // Process customer data.
-        // Expected format: CUST NO.  XCOORD.   YCOORD.    DEMAND   READY TIME  DUE DATE   SERVICE   TIME
-        // Only the first four fields are parsed.
+        // Expected format: CUST NO.  XCOORD.   YCOORD.    DEMAND   ... (additional fields are ignored)
         std::istringstream iss(trimmedLine);
         int custNo;
         double x, y;
@@ -69,7 +68,7 @@ void VRP::loadData(const std::string &filename)
 
         if (!(iss >> custNo >> x >> y >> demand))
         {
-            // If unable to parse essential fields, skip this line.
+            // If essential fields cannot be parsed, skip the line.
             continue;
         }
 
@@ -80,7 +79,6 @@ void VRP::loadData(const std::string &filename)
         node.demand = demand;
         nodes.push_back(node);
     }
-
     infile.close();
 
     // Optional: sort nodes by id in case the file order is not sequential.
@@ -88,6 +86,31 @@ void VRP::loadData(const std::string &filename)
               { return a.id < b.id; });
 
     std::cout << "Loaded " << nodes.size() << " customer nodes from " << filename << std::endl;
+}
+
+std::vector<int> VRP::loadSolution(const std::string &filename) const
+{
+    std::vector<int> solution;
+    std::ifstream infile(filename);
+    if (!infile)
+    {
+        std::cerr << "Error opening solution file: " << filename << std::endl;
+        return solution;
+    }
+    std::string line;
+    // Process file line by line.
+    while (std::getline(infile, line))
+    {
+        std::istringstream iss(line);
+        int num;
+        while (iss >> num)
+        {
+            solution.push_back(num);
+        }
+    }
+    infile.close();
+    std::cout << "Loaded known solution with " << solution.size() << " nodes from " << filename << std::endl;
+    return solution;
 }
 
 double VRP::distance(const Node &a, const Node &b) const
