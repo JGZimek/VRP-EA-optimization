@@ -18,8 +18,8 @@ struct Node
 /**
  * @brief Class representing the Vehicle Routing Problem (VRP).
  *
- * This class handles data loading and provides utility functions for
- * computing distances and route costs.
+ * This class handles data loading from benchmark files (e.g., Solomon instances)
+ * and provides utility functions for computing distances and route costs.
  */
 class VRP
 {
@@ -31,10 +31,13 @@ public:
     ~VRP() = default;
 
     /**
-     * @brief Loads VRP data from a file.
+     * @brief Loads VRP data from a file in the Solomon benchmark format.
      *
-     * The file should have one node per line in the format:
-     * id x y demand
+     * The file is expected to contain a header section (with VEHICLE information)
+     * followed by a CUSTOMER section. The parser skips all lines until the line containing
+     * "CUSTOMER" is encountered, then skips the header line (which contains "CUST NO") and
+     * finally processes each customer line. Only the first four fields (customer number, X coordinate,
+     * Y coordinate, demand) are parsed; other columns are ignored.
      *
      * @param filename Path to the data file.
      */

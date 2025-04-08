@@ -6,8 +6,15 @@
 int main()
 {
     VRP vrp;
-    // Load VRP data from a sample file (ensure the file exists in the 'data' directory)
-    vrp.loadData("data/sample_vrp.txt");
+    // Load VRP data from the Solomon instance file (ensure the file exists in the 'data' directory)
+    vrp.loadData("data/C101.txt");
+
+    // Check if data has been loaded.
+    if (vrp.getNodes().empty())
+    {
+        std::cerr << "No VRP data loaded. Exiting..." << std::endl;
+        return 1;
+    }
 
     GeneticAlgorithm ga(vrp);
     ga.initializePopulation(50);
