@@ -88,31 +88,6 @@ void VRP::loadData(const std::string &filename)
     std::cout << "Loaded " << nodes.size() << " customer nodes from " << filename << std::endl;
 }
 
-std::vector<int> VRP::loadSolution(const std::string &filename) const
-{
-    std::vector<int> solution;
-    std::ifstream infile(filename);
-    if (!infile)
-    {
-        std::cerr << "Error opening solution file: " << filename << std::endl;
-        return solution;
-    }
-    std::string line;
-    // Process file line by line.
-    while (std::getline(infile, line))
-    {
-        std::istringstream iss(line);
-        int num;
-        while (iss >> num)
-        {
-            solution.push_back(num);
-        }
-    }
-    infile.close();
-    std::cout << "Loaded known solution with " << solution.size() << " nodes from " << filename << std::endl;
-    return solution;
-}
-
 double VRP::distance(const Node &a, const Node &b) const
 {
     return std::sqrt((a.x - b.x) * (a.x - b.x) +

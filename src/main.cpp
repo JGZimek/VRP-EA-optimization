@@ -16,22 +16,6 @@ int main()
         return 1;
     }
 
-    // Load known (benchmark) solution from the .sol file.
-    std::vector<int> knownSolution = vrp.loadSolution("data/C101.sol");
-    if (!knownSolution.empty())
-    {
-        std::cout << "Known solution from file: ";
-        for (int node : knownSolution)
-        {
-            std::cout << node << " ";
-        }
-        std::cout << std::endl;
-    }
-    else
-    {
-        std::cerr << "No known solution loaded from the solution file." << std::endl;
-    }
-
     // Run the genetic algorithm.
     GeneticAlgorithm ga(vrp);
     ga.initializePopulation(50);

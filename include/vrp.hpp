@@ -44,17 +44,6 @@ public:
     void loadData(const std::string &filename);
 
     /**
-     * @brief Loads a known solution from a file.
-     *
-     * The file is expected to contain a sequence of integer values representing
-     * customer node indices (possibly interleaved with non-numeric text, which are ignored).
-     *
-     * @param filename Path to the solution file.
-     * @return A vector of node indices representing the known best solution.
-     */
-    std::vector<int> loadSolution(const std::string &filename) const;
-
-    /**
      * @brief Computes the Euclidean distance between two nodes.
      *
      * @param a The first node.
