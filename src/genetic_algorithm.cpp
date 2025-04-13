@@ -94,11 +94,7 @@ double GeneticAlgorithm::evaluateSolution(const std::vector<int> &solution) cons
         }
     }
 
-    // Add the cost of the final route if it exists
-    if (!currentRoute.empty())
-    {
-        totalCost += vrp.computeRouteCost(currentRoute);
-    }
+   return totalCost;
 }
 
 std::vector<int> GeneticAlgorithm::tournamentSelection() const
