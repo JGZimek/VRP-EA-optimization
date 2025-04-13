@@ -114,25 +114,6 @@ std::vector<int> GeneticAlgorithm::selectParent() const
         return rouletteSelection();
 }
 
-void GeneticAlgorithm::reproduce()
-{
-    // New population using selection and mutation.
-    std::vector<std::vector<int>> newPopulation;
-    // Elitism: preserve the best solution.
-    newPopulation.push_back(bestSolution);
-    // Repeatedly select parents, create offspring (via mutation), and add to new population.
-    while (newPopulation.size() < population.size())
-    {
-        std::vector<int> parent = selectParent();
-        std::vector<int> offspring = parent; // Clone parent.
-        // Mutation: swap two random customer nodes.
-        if (offspring.size() > 3)
-        { // Ensure enough nodes for mutation.
-            std::uniform_int_distribution<int> dist(1, static_cast<int>(offspring.size()) - 2);
-            int i = dist(rng);
-            int j = dist(rng);
-            std::swap(offspring[i], offspring[j]);
-
 // Helper mutation: swap two random customer nodes (depot remains fixed).
 void GeneticAlgorithm::mutate(std::vector<int> &solution) const
 {
