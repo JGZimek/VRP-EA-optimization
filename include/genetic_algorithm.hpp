@@ -59,6 +59,13 @@ public:
      */
     std::vector<int> getBestSolution() const;
 
+    /**
+     * @brief Returns the cost of the best solution found so far.
+     *
+     * @return The cost of the best solution.
+     */
+    double getBestSolutionCost() const;
+
 private:
     VRP &vrp;                                 ///< Reference to the VRP instance.
     std::vector<std::vector<int>> population; ///< Population of candidate solutions.
