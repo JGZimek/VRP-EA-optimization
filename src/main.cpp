@@ -24,9 +24,27 @@ int main()
     // Retrieve and display the best solution found by the algorithm.
     std::vector<int> best = ga.getBestSolution();
     std::cout << "Best solution found: ";
+    std::vector<int> currentRoute;
     for (int node : best)
     {
-        std::cout << node << " ";
+        if (node == 0)
+        {
+            if (!currentRoute.empty())
+            {
+                // Print the current route.
+                std::cout << "Route: ";
+                for (int n : currentRoute)
+                {
+                    std::cout << n << " ";
+                }
+                // std::cout << std::endl;
+                currentRoute.clear();
+            }
+        }
+        else
+        {
+            currentRoute.push_back(node);
+        }
     }
     std::cout << std::endl;
 

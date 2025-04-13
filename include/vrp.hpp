@@ -68,9 +68,10 @@ public:
      * @return A constant reference to the vector of nodes.
      */
     const std::vector<Node> &getNodes() const;
-
+    int getNumVehicles() const { return numVehicles; }
 private:
     std::vector<Node> nodes; ///< List of nodes.
+    int numVehicles = 0;     ///< Number of vehicles.
 };
 
 #endif // VRP_HPP
