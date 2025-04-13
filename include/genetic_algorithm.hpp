@@ -6,10 +6,19 @@
 #include <random>
 
 /**
+ * @brief Enum to specify the selection method.
+ */
+enum class SelectionMethod
+{
+    Tournament,
+    Roulette
+};
+
+/**
  * @brief Class implementing a basic Genetic Algorithm for VRP.
  *
  * This class initializes a population of candidate solutions, evaluates them,
- * and evolves the population using a simple mutation operator.
+ * and evolves the population using selection, mutation, and elitism.
  */
 class GeneticAlgorithm
 {
@@ -18,8 +27,10 @@ public:
      * @brief Constructs a GeneticAlgorithm instance.
      *
      * @param vrp A reference to the VRP instance containing problem data.
+     * @param selMethod Selection method to be used (default Tournament).
+     * @param tourSize Tournament size for tournament selection (default 3).
      */
-    explicit GeneticAlgorithm(VRP &vrp);
+    explicit GeneticAlgorithm(VRP &vrp, SelectionMethod selMethod = SelectionMethod::Tournament, int tourSize = 3);
 
     /// Default destructor.
     ~GeneticAlgorithm() = default;
@@ -53,8 +64,10 @@ private:
     std::vector<std::vector<int>> population; ///< Population of candidate solutions.
     std::vector<int> bestSolution;            ///< Best solution found.
     double bestCost;                          ///< Cost of the best solution.
-    std::mt19937 rng;                         ///< Mersenne Twister random number generator.
+    mutable std::mt19937 rng;                 ///< Mersenne Twister random number generator (mutable to allow use in const methods).
 
+    SelectionMethod selectionMethod; ///< Current selection method.
+    int tournamentSize;              ///< Tournament size for tournament selection.
     /**
      * @brief Evaluates the cost of a given solution.
      *
@@ -64,11 +77,38 @@ private:
     double evaluateSolution(const std::vector<int> &solution) const;
 
     /**
-     * @brief Performs a simple mutation on the population.
+     * @brief Performs reproduction to generate a new generation.
      *
-     * Each solution is mutated by swapping two random customer nodes (depot remains fixed).
+     * Uses the current selection method to choose parents, applies mutation,
+     * and incorporates elitism by preserving the best solution.
      */
-    void evolve();
+    void reproduce();
+
+    /**
+     * @brief Selects one parent solution using the configured selection method.
+     *
+     * @return A vector of node indices representing the selected parent.
+     */
+    std::vector<int> selectParent() const;
+
+    /**
+     * @brief Implements tournament selection.
+     *
+     * Randomly picks 'tournamentSize' individuals from the population and returns the best.
+     *
+     * @return The selected parent's gene (route).
+     */
+    std::vector<int> tournamentSelection() const;
+
+    /**
+     * @brief Implements roulette selection.
+     *
+     * Calculates selection probabilities based on fitness (defined as 1/cost)
+     * and returns the selected parent's gene (route).
+     *
+     * @return The selected parent's gene (route).
+     */
+    std::vector<int> rouletteSelection() const;
 };
 
 #endif // GENETIC_ALGORITHM_HPP

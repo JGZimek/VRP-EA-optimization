@@ -4,9 +4,12 @@
 #include <iostream>
 #include <chrono>
 #include <limits>
+#include <numeric>
+#include <stdexcept>
 
-GeneticAlgorithm::GeneticAlgorithm(VRP &vrp)
-    : vrp(vrp), bestCost(std::numeric_limits<double>::max())
+GeneticAlgorithm::GeneticAlgorithm(VRP &vrp, SelectionMethod selMethod, int tourSize)
+    : vrp(vrp), bestCost(std::numeric_limits<double>::max()),
+      selectionMethod(selMethod), tournamentSize(tourSize)
 {
     // Seed the random number generator with the current time.
     rng.seed(std::chrono::steady_clock::now().time_since_epoch().count());
@@ -51,23 +54,97 @@ double GeneticAlgorithm::evaluateSolution(const std::vector<int> &solution) cons
     return vrp.computeRouteCost(solution);
 }
 
-void GeneticAlgorithm::evolve()
+std::vector<int> GeneticAlgorithm::tournamentSelection() const
 {
-    // Mutate each solution in the population by swapping two random customer nodes.
-    for (auto &route : population)
+    int popSize = population.size();
+    if (popSize == 0)
+        throw std::runtime_error("Population is empty during tournament selection.");
+
+    std::uniform_int_distribution<int> dist(0, popSize - 1);
+    int bestIndex = dist(rng);
+    double bestCostLocal = evaluateSolution(population[bestIndex]);
+    for (int k = 1; k < tournamentSize; ++k)
     {
-        if (route.size() <= 3)
-            continue; // Not enough nodes for mutation.
-        // Generate indices between 1 and route.size()-2 (to keep depot fixed).
-        std::uniform_int_distribution<int> dist(1, static_cast<int>(route.size()) - 2);
-        int i = dist(rng);
-        int j = dist(rng);
-        std::swap(route[i], route[j]);
-        double cost = evaluateSolution(route);
-        if (cost < bestCost)
+        int idx = dist(rng);
+        double cost = evaluateSolution(population[idx]);
+        if (cost < bestCostLocal)
         {
-            bestCost = cost;
-            bestSolution = route;
+            bestCostLocal = cost;
+            bestIndex = idx;
+        }
+    }
+    return population[bestIndex];
+}
+
+std::vector<int> GeneticAlgorithm::rouletteSelection() const
+{
+    int popSize = population.size();
+    if (popSize == 0)
+        throw std::runtime_error("Population is empty during roulette selection.");
+
+    // Calculate fitness values (lower cost => higher fitness)
+    std::vector<double> fitness(popSize);
+    double totalFitness = 0.0;
+    for (int i = 0; i < popSize; ++i)
+    {
+        double cost = evaluateSolution(population[i]);
+        // Adding a small value to avoid division by zero.
+        double fit = 1.0 / (cost + 1e-6);
+        fitness[i] = fit;
+        totalFitness += fit;
+    }
+    std::uniform_real_distribution<double> dist(0.0, totalFitness);
+    double r = dist(rng);
+    double cumulative = 0.0;
+    for (int i = 0; i < popSize; ++i)
+    {
+        cumulative += fitness[i];
+        if (cumulative >= r)
+        {
+            return population[i];
+        }
+    }
+    return population.back(); // fallback
+}
+
+std::vector<int> GeneticAlgorithm::selectParent() const
+{
+    if (selectionMethod == SelectionMethod::Tournament)
+        return tournamentSelection();
+    else
+        return rouletteSelection();
+}
+
+void GeneticAlgorithm::reproduce()
+{
+    // New population using selection and mutation.
+    std::vector<std::vector<int>> newPopulation;
+    // Elitism: preserve the best solution.
+    newPopulation.push_back(bestSolution);
+    // Repeatedly select parents, create offspring (via mutation), and add to new population.
+    while (newPopulation.size() < population.size())
+    {
+        std::vector<int> parent = selectParent();
+        std::vector<int> offspring = parent; // Clone parent.
+        // Mutation: swap two random customer nodes.
+        if (offspring.size() > 3)
+        { // Ensure enough nodes for mutation.
+            std::uniform_int_distribution<int> dist(1, static_cast<int>(offspring.size()) - 2);
+            int i = dist(rng);
+            int j = dist(rng);
+            std::swap(offspring[i], offspring[j]);
+        }
+        newPopulation.push_back(offspring);
+    }
+    population = newPopulation;
+    // Update bestSolution and bestCost.
+    for (const auto &ind : population)
+    {
+        double c = evaluateSolution(ind);
+        if (c < bestCost)
+        {
+            bestCost = c;
+            bestSolution = ind;
         }
     }
 }
@@ -80,7 +157,7 @@ void GeneticAlgorithm::run(int generations)
     }
     for (int gen = 0; gen < generations; ++gen)
     {
-        evolve();
+        reproduce();
         std::cout << "Generation " << gen << ": Best cost = " << bestCost << std::endl;
     }
 }
