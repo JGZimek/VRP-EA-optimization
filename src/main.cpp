@@ -23,22 +23,27 @@ int main()
 
     // Retrieve and display the best solution found by the algorithm.
     std::vector<int> best = ga.getBestSolution();
-    std::cout << "Best solution found: ";
+    double cost = ga.getBestSolutionCost(); // Assuming this method exists to get the cost.
+    std::cout << "Best solution found:" << std::endl;
+
     std::vector<int> currentRoute;
+    int routeNumber = 1;
+
     for (int node : best)
     {
         if (node == 0)
         {
             if (!currentRoute.empty())
             {
-                // Print the current route.
-                std::cout << "Route: ";
+                // Print the current route with the route number.
+                std::cout << "Route #" << routeNumber << ": ";
                 for (int n : currentRoute)
                 {
                     std::cout << n << " ";
                 }
-                // std::cout << std::endl;
+                std::cout << std::endl;
                 currentRoute.clear();
+                routeNumber++;
             }
         }
         else
@@ -46,7 +51,9 @@ int main()
             currentRoute.push_back(node);
         }
     }
-    std::cout << std::endl;
+
+    // Print the total cost of the solution.
+    std::cout << "Cost " << cost << std::endl;
 
     return 0;
 }

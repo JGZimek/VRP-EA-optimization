@@ -28,7 +28,7 @@ void GeneticAlgorithm::initializePopulation(int populationSize)
     // Create the initial population
     for (int i = 0; i < populationSize; ++i)
     {
-        int numVehicles = vrp.getNumVehicles(); 
+        int numVehicles = vrp.getNumVehicles();
         std::vector<std::vector<int>> routes(numVehicles); // Routes for each vehicle
         std::vector<int> unassignedCustomers;
 
@@ -94,7 +94,7 @@ double GeneticAlgorithm::evaluateSolution(const std::vector<int> &solution) cons
         }
     }
 
-   return totalCost;
+    return totalCost;
 }
 
 std::vector<int> GeneticAlgorithm::tournamentSelection() const
@@ -178,9 +178,9 @@ std::vector<int> GeneticAlgorithm::pmxCrossover(const std::vector<int> &parent1,
         return parent1; // Not enough nodes for crossover.
 
     std::vector<int> offspring(n, -1);
-     // Fix depot at beginning and end.
-    offspring[0] = 0; 
-    offspring[n - 1] = 0;  
+    // Fix depot at beginning and end.
+    offspring[0] = 0;
+    offspring[n - 1] = 0;
 
     // Select two crossover points randomly in [1, n-2].
     std::uniform_int_distribution<int> dist(1, n - 2);
@@ -266,7 +266,7 @@ void GeneticAlgorithm::reproduce()
     }
     population = newPopulation;
 
-     // Update best solution in the new population.
+    // Update best solution in the new population.
     for (const auto &ind : population)
     {
         double c = evaluateSolution(ind);
@@ -294,4 +294,9 @@ void GeneticAlgorithm::run(int generations)
 std::vector<int> GeneticAlgorithm::getBestSolution() const
 {
     return bestSolution;
+}
+
+double GeneticAlgorithm::getBestSolutionCost() const
+{
+    return bestCost;
 }
