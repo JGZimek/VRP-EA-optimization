@@ -25,23 +25,19 @@ void GeneticAlgorithm::initializePopulation(int populationSize)
         return;
     }
 
-    // Create the initial population
     for (int i = 0; i < populationSize; ++i)
     {
         int numVehicles = vrp.getNumVehicles();
-        std::vector<std::vector<int>> routes(numVehicles); // Routes for each vehicle
+        std::vector<std::vector<int>> routes(numVehicles);
         std::vector<int> unassignedCustomers;
 
-        // Prepare a list of customers (excluding the depot)
         for (int j = 1; j < numNodes; ++j)
         {
             unassignedCustomers.push_back(j);
         }
 
-        // Shuffle the customers randomly
         std::shuffle(unassignedCustomers.begin(), unassignedCustomers.end(), rng);
 
-        // Assign customers to vehicles in a round-robin manner
         int vehicleIndex = 0;
         for (int customer : unassignedCustomers)
         {
@@ -49,55 +45,29 @@ void GeneticAlgorithm::initializePopulation(int populationSize)
             vehicleIndex = (vehicleIndex + 1) % numVehicles;
         }
 
-        // Build the solution as a single list with depots (0) between routes
-        std::vector<int> flattenedSolution;
-        for (const auto &route : routes)
-        {
-            if (!route.empty())
-            {
-                flattenedSolution.push_back(0); // Start depot
-                flattenedSolution.insert(flattenedSolution.end(), route.begin(), route.end());
-                flattenedSolution.push_back(0); // End depot
-            }
-        }
-
-        population.push_back(flattenedSolution);
-        double cost = evaluateSolution(flattenedSolution);
+        population.push_back(routes);
+        double cost = evaluateSolution(routes);
         if (cost < bestCost)
         {
             bestCost = cost;
-            bestSolution = flattenedSolution;
+            bestSolution = routes;
         }
     }
 }
-
-// Evaluates the total cost of a solution by summing the costs of all routes
-double GeneticAlgorithm::evaluateSolution(const std::vector<int> &solution) const
+double GeneticAlgorithm::evaluateSolution(const std::vector<std::vector<int>> &routes) const
 {
     double totalCost = 0.0;
-    std::vector<int> currentRoute;
-
-    for (int node : solution)
+    for (const auto &route : routes)
     {
-        if (node == 0)
+        if (!route.empty())
         {
-            if (!currentRoute.empty())
-            {
-                // Compute the cost of the current route
-                totalCost += vrp.computeRouteCost(currentRoute);
-                currentRoute.clear();
-            }
-        }
-        else
-        {
-            currentRoute.push_back(node);
+            totalCost += vrp.computeRouteCost(route);
         }
     }
-
     return totalCost;
 }
 
-std::vector<int> GeneticAlgorithm::tournamentSelection() const
+std::vector<std::vector<int>> GeneticAlgorithm::tournamentSelection() const
 {
     int popSize = population.size();
     if (popSize == 0)
@@ -118,8 +88,7 @@ std::vector<int> GeneticAlgorithm::tournamentSelection() const
     }
     return population[bestIndex];
 }
-
-std::vector<int> GeneticAlgorithm::rouletteSelection() const
+std::vector<std::vector<int>> GeneticAlgorithm::rouletteSelection() const
 {
     int popSize = population.size();
     if (popSize == 0)
@@ -131,8 +100,7 @@ std::vector<int> GeneticAlgorithm::rouletteSelection() const
     for (int i = 0; i < popSize; ++i)
     {
         double cost = evaluateSolution(population[i]);
-        // Adding a small value to avoid division by zero.
-        double fit = 1.0 / (cost + 1e-6);
+        double fit = 1.0 / (cost + 1e-6); // Avoid division by zero
         fitness[i] = fit;
         totalFitness += fit;
     }
@@ -147,10 +115,10 @@ std::vector<int> GeneticAlgorithm::rouletteSelection() const
             return population[i];
         }
     }
-    return population.back(); // fallback
+    return population.back(); // Fallback
 }
 
-std::vector<int> GeneticAlgorithm::selectParent() const
+std::vector<std::vector<int>> GeneticAlgorithm::selectParent() const
 {
     if (selectionMethod == SelectionMethod::Tournament)
         return tournamentSelection();
@@ -158,112 +126,147 @@ std::vector<int> GeneticAlgorithm::selectParent() const
         return rouletteSelection();
 }
 
-// Helper mutation: swap two random customer nodes (depot remains fixed).
-void GeneticAlgorithm::mutate(std::vector<int> &solution) const
+void GeneticAlgorithm::mutate(std::vector<std::vector<int>> &routes) const
 {
-    if (solution.size() <= 3)
-        return; // Not enough nodes to perform mutation.
-    std::uniform_int_distribution<int> dist(1, static_cast<int>(solution.size()) - 2);
-    int i = dist(rng);
-    int j = dist(rng);
-    std::swap(solution[i], solution[j]);
+    std::uniform_int_distribution<int> vehicleDist(0, routes.size() - 1);
+    int vehicle = vehicleDist(rng);
+
+    if (routes[vehicle].size() <= 1)
+        return; // Not enough nodes to mutate
+
+    std::uniform_int_distribution<int> nodeDist(0, routes[vehicle].size() - 1);
+    int i = nodeDist(rng);
+    int j = nodeDist(rng);
+    std::swap(routes[vehicle][i], routes[vehicle][j]);
 }
-
-// PMX Crossover implementation for permutations.
-// Operates on indices [1, size-2] (excluding depot positions).
-std::vector<int> GeneticAlgorithm::pmxCrossover(const std::vector<int> &parent1, const std::vector<int> &parent2) const
+std::vector<std::vector<int>> GeneticAlgorithm::pmxCrossover(const std::vector<std::vector<int>> &parent1, const std::vector<std::vector<int>> &parent2) const
 {
-    int n = parent1.size();
-    if (n <= 3)
-        return parent1; // Not enough nodes for crossover.
+    int numVehicles = parent1.size();
+    std::vector<std::vector<int>> offspring(numVehicles);
 
-    std::vector<int> offspring(n, -1);
-    // Fix depot at beginning and end.
-    offspring[0] = 0;
-    offspring[n - 1] = 0;
-
-    // Select two crossover points randomly in [1, n-2].
-    std::uniform_int_distribution<int> dist(1, n - 2);
-    int cut1 = dist(rng);
-    int cut2 = dist(rng);
-    if (cut1 > cut2)
-        std::swap(cut1, cut2);
-
-    // Copy the segment from parent1 to offspring.
-    for (int i = cut1; i <= cut2; ++i)
+    for (int v = 0; v < numVehicles; ++v)
     {
-        offspring[i] = parent1[i];
-    }
+        const auto &route1 = parent1[v];
+        const auto &route2 = parent2[v];
 
-    // Map elements from parent2 to offspring.
-    for (int i = cut1; i <= cut2; ++i)
-    {
-        int elem = parent2[i];
-        if (std::find(offspring.begin() + cut1, offspring.begin() + cut2 + 1, elem) != offspring.end())
-            continue;
-
-        int pos = i;
-        while (true)
+        if (route1.empty() || route2.empty())
         {
-            int mappedElem = parent1[pos];
-            auto it = std::find(parent2.begin(), parent2.end(), mappedElem);
-            pos = std::distance(parent2.begin(), it);
-            if (pos < cut1 || pos > cut2)
+            offspring[v] = route1.empty() ? route2 : route1;
+            continue;
+        }
+
+        int n = route1.size();
+        std::vector<int> childRoute(n, -1);
+
+        std::uniform_int_distribution<int> dist(0, n - 1);
+        int cut1 = dist(rng);
+        int cut2 = dist(rng);
+        if (cut1 > cut2)
+            std::swap(cut1, cut2);
+
+        for (int i = cut1; i <= cut2; ++i)
+        {
+            childRoute[i] = route1[i];
+        }
+
+        for (int i = 0; i < n; ++i)
+        {
+            if (std::find(childRoute.begin(), childRoute.end(), route2[i]) == childRoute.end())
             {
-                offspring[pos] = elem;
-                break;
+                for (int j = 0; j < n; ++j)
+                {
+                    if (childRoute[j] == -1)
+                    {
+                        childRoute[j] = route2[i];
+                        break;
+                    }
+                }
             }
         }
-    }
 
-    // Fill in remaining positions from parent2 that are not yet set.
-    for (int i = 1; i < n - 1; ++i)
-    {
-        if (offspring[i] == -1)
-            offspring[i] = parent2[i];
+        offspring[v] = childRoute;
     }
 
     return offspring;
 }
+void GeneticAlgorithm::twoOpt(std::vector<int> &route) const
+{
+    if (route.size() < 3)
+        return;
 
-// Reproduction: generates a new population using crossover and mutation with elitism.
+    bool improved = true;
+    double currentCost = vrp.computeRouteCost(route);
+    while (improved)
+    {
+        improved = false;
+        for (size_t i = 1; i < route.size() - 2; ++i)
+        {
+            for (size_t j = i + 1; j < route.size() - 1; ++j)
+            {
+                std::reverse(route.begin() + i, route.begin() + j + 1);
+                double newCost = vrp.computeRouteCost(route);
+                if (newCost < currentCost)
+                {
+                    currentCost = newCost;
+                    improved = true;
+                }
+                else
+                {
+                    std::reverse(route.begin() + i, route.begin() + j + 1);
+                }
+            }
+        }
+    }
+}
+
 void GeneticAlgorithm::reproduce()
 {
     double crossoverProbability = 0.85;
     double mutationProbability = 0.1;
-    std::vector<std::vector<int>> newPopulation;
+    double twoOptProbability = 0.01;
+
+    std::vector<std::vector<std::vector<int>>> newPopulation;
     // Elitism: preserve the best solution.
     newPopulation.push_back(bestSolution);
 
-    std::uniform_int_distribution<int> indexDist(0, population.size() - 1);
     std::uniform_real_distribution<double> probDist(0.0, 1.0);
 
     while (newPopulation.size() < population.size())
     {
         // Select two parents randomly.
-        int idx1 = indexDist(rng);
-        int idx2 = indexDist(rng);
-        while (idx2 == idx1)
-        { // ensure different parents.
-            idx2 = indexDist(rng);
+        auto parent1 = selectParent();
+        auto parent2 = selectParent();
+        while (parent1 == parent2)
+        {
+            parent2 = selectParent();
         }
-        std::vector<int> offspring;
+
+        std::vector<std::vector<int>> offspring;
         if (probDist(rng) < crossoverProbability)
         {
-            offspring = pmxCrossover(population[idx1], population[idx2]);
+            offspring = pmxCrossover(parent1, parent2);
         }
         else
         {
-            // If not performing crossover, clone one parent.
-            offspring = population[idx1];
+            offspring = parent1;
         }
-        // Apply mutation with a given probability.
+
         if (probDist(rng) < mutationProbability)
         {
             mutate(offspring);
         }
+
+        for (auto &route : offspring)
+        {
+            if (probDist(rng) < twoOptProbability)
+            {
+                twoOpt(route); // Optimize each route individually
+            }
+        }
+
         newPopulation.push_back(offspring);
     }
+
     population = newPopulation;
 
     // Update best solution in the new population.
@@ -287,11 +290,10 @@ void GeneticAlgorithm::run(int generations)
     for (int gen = 0; gen < generations; ++gen)
     {
         reproduce();
-        std::cout << "Generation " << gen << ": Best cost = " << bestCost << std::endl;
     }
 }
 
-std::vector<int> GeneticAlgorithm::getBestSolution() const
+std::vector<std::vector<int>> GeneticAlgorithm::getBestSolution() const
 {
     return bestSolution;
 }

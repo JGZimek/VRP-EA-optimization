@@ -2,6 +2,7 @@
 #include "genetic_algorithm.hpp"
 #include <iostream>
 #include <vector>
+#include <numeric> // For std::accumulate
 
 int main()
 {
@@ -16,44 +17,47 @@ int main()
         return 1;
     }
 
-    // Run the genetic algorithm.
-    GeneticAlgorithm ga(vrp);
-    ga.initializePopulation(50);
-    ga.run(100);
+    const int runs = 10; // Number of runs
+    std::vector<double> results; // Store the results of each run
 
-    // Retrieve and display the best solution found by the algorithm.
-    std::vector<int> best = ga.getBestSolution();
-    double cost = ga.getBestSolutionCost(); // Assuming this method exists to get the cost.
-    std::cout << "Best solution found:" << std::endl;
-
-    std::vector<int> currentRoute;
-    int routeNumber = 1;
-
-    for (int node : best)
+    for (int i = 0; i < runs; ++i)
     {
-        if (node == 0)
+        // Run the genetic algorithm.
+        GeneticAlgorithm ga(vrp);
+        ga.initializePopulation(50);
+        ga.run(100);
+
+        // Retrieve the best solution cost.
+        double cost = ga.getBestSolutionCost(); // Assuming this method exists to get the cost.
+        results.push_back(cost);
+
+        std::cout << "Run #" << (i + 1) << " cost: " << cost << std::endl;
+        std::cout << "Best solution (routes):" << std::endl;
+        auto bestSolution = ga.getBestSolution(); 
+        
+        for (size_t vehicle = 0; vehicle < bestSolution.size(); ++vehicle)
         {
-            if (!currentRoute.empty())
+            const auto &route = bestSolution[vehicle];
+            if (!route.empty())
             {
-                // Print the current route with the route number.
-                std::cout << "Route #" << routeNumber << ": ";
-                for (int n : currentRoute)
+                std::cout << "Vehicle " << (vehicle + 1) << " route: ";
+                for (int node : route)
                 {
-                    std::cout << n << " ";
+                    std::cout << node << " ";
                 }
-                std::cout << std::endl;
-                currentRoute.clear();
-                routeNumber++;
+                 std::cout << std::endl;
+            }
+            else
+            {
+                 std::cout << "Vehicle " << (vehicle + 1) << " has no assigned route." << std::endl;
             }
         }
-        else
-        {
-            currentRoute.push_back(node);
-        }
+     
     }
 
-    // Print the total cost of the solution.
-    std::cout << "Cost " << cost << std::endl;
+    // Calculate the average cost.
+    double averageCost = std::accumulate(results.begin(), results.end(), 0.0) / runs;
+    std::cout << "Average cost over " << runs << " runs: " << averageCost << std::endl;
 
     return 0;
 }
