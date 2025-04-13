@@ -18,7 +18,7 @@ enum class SelectionMethod
  * @brief Class implementing a basic Genetic Algorithm for VRP.
  *
  * This class initializes a population of candidate solutions, evaluates them,
- * and evolves the population using selection, mutation, and elitism.
+ * and evolves the population using selection, crossover, and mutation operators.
  */
 class GeneticAlgorithm
 {
@@ -109,6 +109,27 @@ private:
      * @return The selected parent's gene (route).
      */
     std::vector<int> rouletteSelection() const;
+
+    /**
+     * @brief Performs PMX (Partially Mapped Crossover) between two parent solutions.
+     *
+     * Assumes that both parents represent valid routes with depot at index 0 and at the end.
+     * The crossover is applied only on the inner part of the route (i.e. indices [1, size-2]).
+     *
+     * @param parent1 The first parent solution.
+     * @param parent2 The second parent solution.
+     * @return An offspring solution generated using PMX.
+     */
+    std::vector<int> pmxCrossover(const std::vector<int> &parent1, const std::vector<int> &parent2) const;
+
+    /**
+     * @brief Performs a simple mutation on a solution by swapping two random customer nodes.
+     *
+     * The depot at index 0 and at the end remains fixed.
+     *
+     * @param solution The solution to be mutated.
+     */
+    void mutate(std::vector<int> &solution) const;
 };
 
 #endif // GENETIC_ALGORITHM_HPP
