@@ -24,33 +24,77 @@ void GeneticAlgorithm::initializePopulation(int populationSize)
         std::cerr << "No VRP data loaded!" << std::endl;
         return;
     }
-    // Assume node 0 is the depot; create a list of customer indices.
-    std::vector<int> baseRoute;
-    for (int i = 1; i < numNodes; ++i)
-    {
-        baseRoute.push_back(i);
-    }
-    // Create the initial population.
+
+    // Create the initial population
     for (int i = 0; i < populationSize; ++i)
     {
-        std::vector<int> route = baseRoute;
-        std::shuffle(route.begin(), route.end(), rng);
-        // Insert depot at the beginning and end of the route.
-        route.insert(route.begin(), 0);
-        route.push_back(0);
-        population.push_back(route);
-        double cost = evaluateSolution(route);
+        int numVehicles = vrp.getNumVehicles(); 
+        std::vector<std::vector<int>> routes(numVehicles); // Routes for each vehicle
+        std::vector<int> unassignedCustomers;
+
+        // Prepare a list of customers (excluding the depot)
+        for (int j = 1; j < numNodes; ++j)
+        {
+            unassignedCustomers.push_back(j);
+        }
+
+        // Shuffle the customers randomly
+        std::shuffle(unassignedCustomers.begin(), unassignedCustomers.end(), rng);
+
+        // Assign customers to vehicles in a round-robin manner
+        int vehicleIndex = 0;
+        for (int customer : unassignedCustomers)
+        {
+            routes[vehicleIndex].push_back(customer);
+            vehicleIndex = (vehicleIndex + 1) % numVehicles;
+        }
+
+        // Build the solution as a single list with depots (0) between routes
+        std::vector<int> flattenedSolution;
+        for (const auto &route : routes)
+        {
+            if (!route.empty())
+            {
+                flattenedSolution.push_back(0); // Start depot
+                flattenedSolution.insert(flattenedSolution.end(), route.begin(), route.end());
+                flattenedSolution.push_back(0); // End depot
+            }
+        }
+
+        population.push_back(flattenedSolution);
+        double cost = evaluateSolution(flattenedSolution);
         if (cost < bestCost)
         {
             bestCost = cost;
-            bestSolution = route;
+            bestSolution = flattenedSolution;
         }
     }
 }
 
+// Evaluates the total cost of a solution by summing the costs of all routes
 double GeneticAlgorithm::evaluateSolution(const std::vector<int> &solution) const
 {
-    return vrp.computeRouteCost(solution);
+    double totalCost = 0.0;
+    std::vector<int> currentRoute;
+
+    for (int node : solution)
+    {
+        if (node == 0)
+        {
+            if (!currentRoute.empty())
+            {
+                // Compute the cost of the current route
+                totalCost += vrp.computeRouteCost(currentRoute);
+                currentRoute.clear();
+            }
+        }
+        else
+        {
+            currentRoute.push_back(node);
+        }
+    }
+
+   return totalCost;
 }
 
 std::vector<int> GeneticAlgorithm::tournamentSelection() const
@@ -134,9 +178,9 @@ std::vector<int> GeneticAlgorithm::pmxCrossover(const std::vector<int> &parent1,
         return parent1; // Not enough nodes for crossover.
 
     std::vector<int> offspring(n, -1);
-    // Fix depot at beginning and end.
-    offspring[0] = 0;
-    offspring[n - 1] = 0;
+     // Fix depot at beginning and end.
+    offspring[0] = 0; 
+    offspring[n - 1] = 0;  
 
     // Select two crossover points randomly in [1, n-2].
     std::uniform_int_distribution<int> dist(1, n - 2);
@@ -151,30 +195,22 @@ std::vector<int> GeneticAlgorithm::pmxCrossover(const std::vector<int> &parent1,
         offspring[i] = parent1[i];
     }
 
-    // Mapping: for each position i in the cut, map the element from parent2.
+    // Map elements from parent2 to offspring.
     for (int i = cut1; i <= cut2; ++i)
     {
         int elem = parent2[i];
-        // If element already present in offspring, skip.
         if (std::find(offspring.begin() + cut1, offspring.begin() + cut2 + 1, elem) != offspring.end())
             continue;
 
-        // Find position in parent2.
         int pos = i;
         while (true)
         {
-            // Find the element in parent1 at pos.
             int mappedElem = parent1[pos];
-            // Find the position of mappedElem in parent2.
             auto it = std::find(parent2.begin(), parent2.end(), mappedElem);
             pos = std::distance(parent2.begin(), it);
-            // Stop if pos is outside the crossover segment.
             if (pos < cut1 || pos > cut2)
             {
-                if (offspring[pos] == -1)
-                {
-                    offspring[pos] = elem;
-                }
+                offspring[pos] = elem;
                 break;
             }
         }
@@ -230,7 +266,7 @@ void GeneticAlgorithm::reproduce()
     }
     population = newPopulation;
 
-    // Update best solution in the new population.
+     // Update best solution in the new population.
     for (const auto &ind : population)
     {
         double c = evaluateSolution(ind);
