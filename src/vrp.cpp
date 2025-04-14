@@ -16,7 +16,6 @@ static inline std::string trim(const std::string &s)
     size_t end = s.find_last_not_of(whitespace);
     return s.substr(start, end - start + 1);
 }
-
 void VRP::loadData(const std::string &filename)
 {
     std::ifstream infile(filename);
@@ -27,6 +26,7 @@ void VRP::loadData(const std::string &filename)
     }
     nodes.clear();
     std::string line;
+    bool vehicleSection = false;
     bool customerSection = false;
     bool headerSkipped = false;
 
@@ -39,53 +39,73 @@ void VRP::loadData(const std::string &filename)
             continue; // Skip empty lines.
         }
 
+        // Detect the start of the VEHICLE section.
+        if (!vehicleSection)
+        {
+            if (trimmedLine.find("VEHICLE") != std::string::npos)
+            {
+                vehicleSection = true;
+                continue;
+            }
+        }
+
+        // Read the number of vehicles from the VEHICLE section.
+        if (vehicleSection && !customerSection)
+        {
+            std::istringstream iss(trimmedLine);
+            if (iss >> numVehicles)
+            {
+                vehicleSection = false; // Done reading VEHICLE section.
+                continue;
+            }
+        }
+
         // Detect the start of the CUSTOMER section.
         if (!customerSection)
         {
             if (trimmedLine.find("CUSTOMER") != std::string::npos)
             {
                 customerSection = true;
+                continue;
             }
-            continue; // Skip lines until CUSTOMER section.
         }
 
         // Skip header line in CUSTOMER section.
-        if (!headerSkipped)
+        if (customerSection && !headerSkipped)
         {
             if (trimmedLine.find("CUST NO") != std::string::npos)
             {
                 headerSkipped = true;
+                continue;
             }
-            continue;
         }
 
         // Process customer data.
-        // Expected format: CUST NO.  XCOORD.   YCOORD.    DEMAND   ... (additional fields are ignored)
-        std::istringstream iss(trimmedLine);
-        int custNo;
-        double x, y;
-        int demand;
-
-        if (!(iss >> custNo >> x >> y >> demand))
+        if (customerSection && headerSkipped)
         {
-            // If essential fields cannot be parsed, skip the line.
-            continue;
-        }
+            std::istringstream iss(trimmedLine);
+            int custNo;
+            double x, y;
+            int demand;
 
-        Node node;
-        node.id = custNo;
-        node.x = x;
-        node.y = y;
-        node.demand = demand;
-        nodes.push_back(node);
+            if (!(iss >> custNo >> x >> y >> demand))
+            {
+                std::cerr << "Error parsing customer data: " << trimmedLine << std::endl;
+                continue;
+            }
+
+            Node node;
+            node.id = custNo;
+            node.x = x;
+            node.y = y;
+            node.demand = demand;
+            nodes.push_back(node);
+        }
     }
     infile.close();
 
-    // Optional: sort nodes by id in case the file order is not sequential.
-    std::sort(nodes.begin(), nodes.end(), [](const Node &a, const Node &b)
-              { return a.id < b.id; });
-
     std::cout << "Loaded " << nodes.size() << " customer nodes from " << filename << std::endl;
+    std::cout << "Number of vehicles: " << numVehicles << std::endl;
 }
 
 double VRP::distance(const Node &a, const Node &b) const
