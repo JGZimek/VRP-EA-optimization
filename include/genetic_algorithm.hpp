@@ -67,11 +67,11 @@ public:
     double getBestSolutionCost() const;
 
 private:
-    VRP &vrp;                                 ///< Reference to the VRP instance.
+    VRP &vrp; ///< Reference to the VRP instance.
     std::vector<std::vector<int>> bestSolution;
-    std::vector<std::vector<std::vector<int>>> population;          ///< Best solution found.
-    double bestCost;                          ///< Cost of the best solution.
-    mutable std::mt19937 rng;                 ///< Mersenne Twister random number generator (mutable to allow use in const methods).
+    std::vector<std::vector<std::vector<int>>> population; ///< Best solution found.
+    double bestCost;                                       ///< Cost of the best solution.
+    mutable std::mt19937 rng;                              ///< Mersenne Twister random number generator (mutable to allow use in const methods).
 
     SelectionMethod selectionMethod; ///< Current selection method.
     int tournamentSize;              ///< Tournament size for tournament selection.

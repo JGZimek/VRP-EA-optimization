@@ -3,7 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <numeric> // For std::accumulate
-#include <algorithm> 
+#include <algorithm>
 
 int main()
 {
@@ -18,7 +18,7 @@ int main()
         return 1;
     }
 
-    const int runs = 10; // Number of runs
+    const int runs = 10;         // Number of runs
     std::vector<double> results; // Store the results of each run
 
     for (int i = 0; i < runs; ++i)
@@ -34,8 +34,8 @@ int main()
 
         std::cout << "Run #" << (i + 1) << " cost: " << cost << std::endl;
         std::cout << "Best solution (routes):" << std::endl;
-        auto bestSolution = ga.getBestSolution(); 
-        
+        auto bestSolution = ga.getBestSolution();
+
         for (size_t vehicle = 0; vehicle < bestSolution.size(); ++vehicle)
         {
             const auto &route = bestSolution[vehicle];
@@ -46,14 +46,13 @@ int main()
                 {
                     std::cout << node << " ";
                 }
-                 std::cout << std::endl;
+                std::cout << std::endl;
             }
             else
             {
-                 std::cout << "Vehicle " << (vehicle + 1) << " has no assigned route." << std::endl;
+                std::cout << "Vehicle " << (vehicle + 1) << " has no assigned route." << std::endl;
             }
         }
-     
     }
 
     // Calculate the average cost.
@@ -61,6 +60,6 @@ int main()
     std::cout << "Average cost over " << runs << " runs: " << averageCost << std::endl;
     double bestCost = *std::min_element(results.begin(), results.end());
     std::cout << "Best cost over " << runs << " runs: " << bestCost << std::endl;
-    
+
     return 0;
 }

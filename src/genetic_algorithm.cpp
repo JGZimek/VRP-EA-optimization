@@ -3,7 +3,7 @@
 #include <random>
 #include <iostream>
 #include <chrono>
-#include <algorithm> 
+#include <algorithm>
 #include <limits>
 #include <numeric>
 #include <stdexcept>
@@ -143,11 +143,9 @@ void GeneticAlgorithm::mutate(std::vector<std::vector<int>> &routes) const
     std::swap(routes[vehicle][i], routes[vehicle][j]);
 }
 
-
 std::vector<std::vector<int>> GeneticAlgorithm::pmxCrossover(
     const std::vector<std::vector<int>> &parent1,
-    const std::vector<std::vector<int>> &parent2
-   ) const
+    const std::vector<std::vector<int>> &parent2) const
 {
     int maxVehicles = vrp.getNumVehicles();
     bool balancedDistribution = true;
@@ -163,7 +161,8 @@ std::vector<std::vector<int>> GeneticAlgorithm::pmxCrossover(
 
     std::uniform_int_distribution<int> dist(0, size - 1);
     std::vector<int>::size_type cut1 = dist(rng), cut2 = dist(rng);
-    if (cut1 > cut2) std::swap(cut1, cut2);
+    if (cut1 > cut2)
+        std::swap(cut1, cut2);
 
     for (std::vector<int>::size_type i = cut1; i <= cut2; ++i)
         child[i] = flat1[i];
@@ -177,7 +176,8 @@ std::vector<std::vector<int>> GeneticAlgorithm::pmxCrossover(
     std::unordered_set<int> used(child.begin(), child.end());
     for (std::vector<int>::size_type i = 0; i < size; ++i)
     {
-        if (i >= cut1 && i <= cut2) continue;
+        if (i >= cut1 && i <= cut2)
+            continue;
 
         int candidate = flat2[i];
         std::unordered_set<int> visited;
@@ -192,7 +192,8 @@ std::vector<std::vector<int>> GeneticAlgorithm::pmxCrossover(
             candidate = mapping[candidate];
         }
 
-        if (used.find(candidate) != used.end()) continue;
+        if (used.find(candidate) != used.end())
+            continue;
 
         child[i] = candidate;
         used.insert(candidate);
@@ -219,16 +220,16 @@ std::vector<std::vector<int>> GeneticAlgorithm::pmxCrossover(
 
     if (balancedDistribution)
     {
-        std::uniform_int_distribution<int> emptyVehiclesDist(0, maxVehicles - 1); 
+        std::uniform_int_distribution<int> emptyVehiclesDist(0, maxVehicles - 1);
         int emptyVehicles = emptyVehiclesDist(rng);
-    
+
         std::vector<bool> isVehicleEmpty(maxVehicles, false);
         for (int i = 0; i < emptyVehicles; ++i)
         {
             isVehicleEmpty[i] = true;
         }
         std::shuffle(isVehicleEmpty.begin(), isVehicleEmpty.end(), rng);
-    
+
         int nonEmptyVehicles = maxVehicles - emptyVehicles;
         if (nonEmptyVehicles <= 0)
         {
@@ -242,22 +243,22 @@ std::vector<std::vector<int>> GeneticAlgorithm::pmxCrossover(
             }
             std::shuffle(isVehicleEmpty.begin(), isVehicleEmpty.end(), rng);
         }
-    
+
         int avgClientsPerVehicle = std::ceil(static_cast<double>(child.size()) / nonEmptyVehicles);
         int assignedClients = 0;
-    
+
         for (int v = 0; v < maxVehicles && idx < child.size(); ++v)
         {
             if (isVehicleEmpty[v])
                 continue;
-    
+
             for (int i = 0; i < avgClientsPerVehicle && idx < child.size(); ++i)
             {
                 offspring[v].push_back(child[idx++]);
                 assignedClients++;
             }
         }
-    
+
         int vehicleIdx = 0;
         while (idx < child.size())
         {
@@ -301,10 +302,9 @@ std::vector<std::vector<int>> GeneticAlgorithm::pmxCrossover(
     return offspring;
 }
 
-
 void GeneticAlgorithm::twoOpt(std::vector<int> &route) const
 {
-    if (route.size() < 3)
+    if (route.size() < 2)
         return;
 
     bool improved = true;
@@ -336,17 +336,49 @@ void GeneticAlgorithm::reproduce()
 {
     double crossoverProbability = 0.85;
     double mutationProbability = 0.1;
-    double twoOptProbability = 0.01;
+    double twoOptProbability = 0.1;
+    double forBestSolutiuonsTwoOptProbability = 0.5;
 
     std::vector<std::vector<std::vector<int>>> newPopulation;
-    // Elitism: preserve the best solution.
-    newPopulation.push_back(bestSolution);
+
+    std::vector<std::pair<double, std::vector<std::vector<int>>>> bestSolutions;
+
+    for (const auto &ind : population)
+    {
+        double cost = evaluateSolution(ind);
+        if (bestSolutions.size() < 10)
+        {
+            bestSolutions.emplace_back(cost, ind);
+            std::sort(bestSolutions.begin(), bestSolutions.end());
+        }
+        else if (cost < bestSolutions.back().first)
+        {
+            bestSolutions.back() = {cost, ind};
+            std::sort(bestSolutions.begin(), bestSolutions.end());
+        }
+    }
 
     std::uniform_real_distribution<double> probDist(0.0, 1.0);
 
+    for (auto &solution : bestSolutions)
+    {
+        if (probDist(rng) < forBestSolutiuonsTwoOptProbability)
+        {
+            for (auto &route : solution.second)
+            {
+                twoOpt(route);
+            }
+            solution.first = evaluateSolution(solution.second);
+        }
+    }
+
+    for (const auto &solution : bestSolutions)
+    {
+        newPopulation.push_back(solution.second);
+    }
+
     while (newPopulation.size() < population.size())
     {
-        // Select two parents randomly.
         auto parent1 = selectParent();
         auto parent2 = selectParent();
         while (parent1 == parent2)
@@ -373,7 +405,7 @@ void GeneticAlgorithm::reproduce()
         {
             if (probDist(rng) < twoOptProbability)
             {
-                twoOpt(route); // Optimize each route individually
+                twoOpt(route);
             }
         }
 
@@ -382,23 +414,20 @@ void GeneticAlgorithm::reproduce()
 
     population = newPopulation;
 
-    // Update best solution in the new population.
-    for (const auto &ind : population)
+    for (const auto &solution : bestSolutions)
     {
-        double c = evaluateSolution(ind);
-        if (c < bestCost)
+        if (solution.first < bestCost)
         {
-            bestCost = c;
-            bestSolution = ind;
+            bestCost = solution.first;
+            bestSolution = solution.second;
         }
     }
 }
-
 void GeneticAlgorithm::run(int generations)
 {
     if (population.empty())
     {
-        initializePopulation(50); // Default population size if not initialized.
+        initializePopulation(50);
     }
     for (int gen = 0; gen < generations; ++gen)
     {
