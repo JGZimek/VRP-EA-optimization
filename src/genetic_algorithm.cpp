@@ -6,6 +6,7 @@
 #include <limits>
 #include <numeric>
 #include <stdexcept>
+#include <unordered_set>
 
 GeneticAlgorithm::GeneticAlgorithm(VRP &vrp, SelectionMethod selMethod, int tourSize)
     : vrp(vrp), bestCost(std::numeric_limits<double>::max()),
@@ -139,56 +140,149 @@ void GeneticAlgorithm::mutate(std::vector<std::vector<int>> &routes) const
     int j = nodeDist(rng);
     std::swap(routes[vehicle][i], routes[vehicle][j]);
 }
-std::vector<std::vector<int>> GeneticAlgorithm::pmxCrossover(const std::vector<std::vector<int>> &parent1, const std::vector<std::vector<int>> &parent2) const
+
+ // Dodano brakujący nagłówek
+
+ std::vector<std::vector<int>> GeneticAlgorithm::pmxCrossover(
+    const std::vector<std::vector<int>> &parent1,
+    const std::vector<std::vector<int>> &parent2) const
 {
-    int numVehicles = parent1.size();
-    std::vector<std::vector<int>> offspring(numVehicles);
+    // 1. Spłaszczamy rodziców do jednej permutacji
+    std::vector<int> flat1, flat2;
+    for (const auto &route : parent1)
+        flat1.insert(flat1.end(), route.begin(), route.end());
+    for (const auto &route : parent2)
+        flat2.insert(flat2.end(), route.begin(), route.end());
 
-    for (int v = 0; v < numVehicles; ++v)
+    std::vector<int>::size_type size = flat1.size();
+    std::vector<int> child(size, -1);
+
+    // 2. Losowe punkty cięcia
+    std::uniform_int_distribution<int> dist(0, size - 1);
+    std::vector<int>::size_type cut1 = dist(rng), cut2 = dist(rng);
+    if (cut1 > cut2) std::swap(cut1, cut2);
+
+    // Debugowanie punktów cięcia
+    // std::cout << "Cut points: " << cut1 << ", " << cut2 << std::endl;
+
+    // 3. Skopiuj środkowy fragment z parent1
+    for (std::vector<int>::size_type i = cut1; i <= cut2; ++i)
+        child[i] = flat1[i];
+
+    // 4. Mapowanie wartości parent2 -> parent1 w wycinku
+    std::unordered_map<int, int> mapping;
+    for (std::vector<int>::size_type i = cut1; i <= cut2; ++i)
     {
-        const auto &route1 = parent1[v];
-        const auto &route2 = parent2[v];
+        mapping[flat2[i]] = flat1[i];
+    }
 
-        if (route1.empty() || route2.empty())
+    // 5. Uzupełnij pozostałe miejsca z parent2 z mapowaniem
+    std::unordered_set<int> used(child.begin(), child.end());
+    for (std::vector<int>::size_type i = 0; i < size; ++i)
+    {
+        if (i >= cut1 && i <= cut2) continue;
+
+        int candidate = flat2[i];
+        std::unordered_set<int> visited;
+        while (mapping.find(candidate) != mapping.end())
         {
-            offspring[v] = route1.empty() ? route2 : route1;
-            continue;
-        }
-
-        int n = route1.size();
-        std::vector<int> childRoute(n, -1);
-
-        std::uniform_int_distribution<int> dist(0, n - 1);
-        int cut1 = dist(rng);
-        int cut2 = dist(rng);
-        if (cut1 > cut2)
-            std::swap(cut1, cut2);
-
-        for (int i = cut1; i <= cut2; ++i)
-        {
-            childRoute[i] = route1[i];
-        }
-
-        for (int i = 0; i < n; ++i)
-        {
-            if (std::find(childRoute.begin(), childRoute.end(), route2[i]) == childRoute.end())
+            if (visited.find(candidate) != visited.end())
             {
-                for (int j = 0; j < n; ++j)
+                std::cerr << "Cycle detected in mapping for candidate: " << candidate << std::endl;
+                break;
+            }
+            visited.insert(candidate);
+            candidate = mapping[candidate];
+        }
+
+        if (used.find(candidate) != used.end()) continue;
+
+        child[i] = candidate;
+        used.insert(candidate);
+    }
+
+    // Dodaj brakujące punkty
+    for (int i = 1; i <= static_cast<int>(size); ++i)
+    {
+        if (used.find(i) == used.end())
+        {
+            for (std::vector<int>::size_type j = 0; j < size; ++j)
+            {
+                if (child[j] == -1)
                 {
-                    if (childRoute[j] == -1)
-                    {
-                        childRoute[j] = route2[i];
-                        break;
-                    }
+                    child[j] = i;
+                    used.insert(i);
+                    break;
                 }
             }
         }
-
-        offspring[v] = childRoute;
     }
+
+    // Debugowanie dziecka po PMX
+    // std::cout << "Child after PMX crossover: ";
+    // for (int node : child)
+    // {
+    //     std::cout << node << " ";
+    // }
+    // std::cout << std::endl;
+
+    std::unordered_set<int> uniqueClients(child.begin(), child.end());
+    if (uniqueClients.size() != size)
+    {
+        std::cerr << "Error: Duplicate or missing clients detected in child!" << std::endl;
+    }
+
+    for (int i = 1; i <= static_cast<int>(size); ++i)
+    {
+        if (uniqueClients.find(i) == uniqueClients.end())
+        {
+            std::cerr << "Error: Missing client " << i << " in child!" << std::endl;
+        }
+    }
+
+    // 6. Podział z powrotem na trasy
+    // 6. Dynamiczny podział na trasy z ograniczeniem liczby pojazdów
+    int maxVehicles = parent1.size(); // Maksymalna liczba pojazdów
+    std::vector<std::vector<int>> offspring(maxVehicles);
+
+    std::vector<int>::size_type idx = 0;
+    for (int v = 0; v < maxVehicles - 1 && idx < child.size(); ++v)
+    {
+        // Losuj długość trasy (minimum 1 klient)
+        std::uniform_int_distribution<int> routeLengthDist(1, std::min(static_cast<int>(child.size() - idx), 5)); // Maksymalnie 5 klientów na trasę
+        int routeLength = routeLengthDist(rng);
+
+        for (int i = 0; i < routeLength && idx < child.size(); ++i)
+        {
+            offspring[v].push_back(child[idx++]);
+        }
+    }
+
+    // Przypisz pozostałych klientów do ostatniego pojazdu
+    while (idx < child.size())
+    {
+        offspring[maxVehicles - 1].push_back(child[idx++]);
+    }
+
+
+
+    // // Debugowanie tras potomka
+    // std::cout << "Offspring routes:" << std::endl;
+    // for (size_t v = 0; v < offspring.size(); ++v)
+    // {
+    //     std::cout << "Vehicle " << v + 1 << ": ";
+    //     for (int node : offspring[v])
+    //     {
+    //         std::cout << node << " ";
+    //     }
+    //     std::cout << std::endl;
+    // }
 
     return offspring;
 }
+
+
+
 void GeneticAlgorithm::twoOpt(std::vector<int> &route) const
 {
     if (route.size() < 3)
