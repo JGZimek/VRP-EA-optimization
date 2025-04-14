@@ -3,10 +3,12 @@
 #include <random>
 #include <iostream>
 #include <chrono>
+#include <algorithm> 
 #include <limits>
 #include <numeric>
 #include <stdexcept>
 #include <unordered_set>
+#include <unordered_map>
 
 GeneticAlgorithm::GeneticAlgorithm(VRP &vrp, SelectionMethod selMethod, int tourSize)
     : vrp(vrp), bestCost(std::numeric_limits<double>::max()),
@@ -141,13 +143,15 @@ void GeneticAlgorithm::mutate(std::vector<std::vector<int>> &routes) const
     std::swap(routes[vehicle][i], routes[vehicle][j]);
 }
 
- // Dodano brakujący nagłówek
 
- std::vector<std::vector<int>> GeneticAlgorithm::pmxCrossover(
+std::vector<std::vector<int>> GeneticAlgorithm::pmxCrossover(
     const std::vector<std::vector<int>> &parent1,
-    const std::vector<std::vector<int>> &parent2) const
+    const std::vector<std::vector<int>> &parent2
+   ) const
 {
-    // 1. Spłaszczamy rodziców do jednej permutacji
+    int maxVehicles = vrp.getNumVehicles();
+    bool balancedDistribution = true;
+
     std::vector<int> flat1, flat2;
     for (const auto &route : parent1)
         flat1.insert(flat1.end(), route.begin(), route.end());
@@ -157,26 +161,19 @@ void GeneticAlgorithm::mutate(std::vector<std::vector<int>> &routes) const
     std::vector<int>::size_type size = flat1.size();
     std::vector<int> child(size, -1);
 
-    // 2. Losowe punkty cięcia
     std::uniform_int_distribution<int> dist(0, size - 1);
     std::vector<int>::size_type cut1 = dist(rng), cut2 = dist(rng);
     if (cut1 > cut2) std::swap(cut1, cut2);
 
-    // Debugowanie punktów cięcia
-    // std::cout << "Cut points: " << cut1 << ", " << cut2 << std::endl;
-
-    // 3. Skopiuj środkowy fragment z parent1
     for (std::vector<int>::size_type i = cut1; i <= cut2; ++i)
         child[i] = flat1[i];
 
-    // 4. Mapowanie wartości parent2 -> parent1 w wycinku
     std::unordered_map<int, int> mapping;
     for (std::vector<int>::size_type i = cut1; i <= cut2; ++i)
     {
         mapping[flat2[i]] = flat1[i];
     }
 
-    // 5. Uzupełnij pozostałe miejsca z parent2 z mapowaniem
     std::unordered_set<int> used(child.begin(), child.end());
     for (std::vector<int>::size_type i = 0; i < size; ++i)
     {
@@ -201,7 +198,6 @@ void GeneticAlgorithm::mutate(std::vector<std::vector<int>> &routes) const
         used.insert(candidate);
     }
 
-    // Dodaj brakujące punkty
     for (int i = 1; i <= static_cast<int>(size); ++i)
     {
         if (used.find(i) == used.end())
@@ -218,69 +214,92 @@ void GeneticAlgorithm::mutate(std::vector<std::vector<int>> &routes) const
         }
     }
 
-    // Debugowanie dziecka po PMX
-    // std::cout << "Child after PMX crossover: ";
-    // for (int node : child)
-    // {
-    //     std::cout << node << " ";
-    // }
-    // std::cout << std::endl;
-
-    std::unordered_set<int> uniqueClients(child.begin(), child.end());
-    if (uniqueClients.size() != size)
-    {
-        std::cerr << "Error: Duplicate or missing clients detected in child!" << std::endl;
-    }
-
-    for (int i = 1; i <= static_cast<int>(size); ++i)
-    {
-        if (uniqueClients.find(i) == uniqueClients.end())
-        {
-            std::cerr << "Error: Missing client " << i << " in child!" << std::endl;
-        }
-    }
-
-    // 6. Podział z powrotem na trasy
-    // 6. Dynamiczny podział na trasy z ograniczeniem liczby pojazdów
-    int maxVehicles = parent1.size(); // Maksymalna liczba pojazdów
     std::vector<std::vector<int>> offspring(maxVehicles);
-
     std::vector<int>::size_type idx = 0;
-    for (int v = 0; v < maxVehicles - 1 && idx < child.size(); ++v)
-    {
-        // Losuj długość trasy (minimum 1 klient)
-        std::uniform_int_distribution<int> routeLengthDist(1, std::min(static_cast<int>(child.size() - idx), 5)); // Maksymalnie 5 klientów na trasę
-        int routeLength = routeLengthDist(rng);
 
-        for (int i = 0; i < routeLength && idx < child.size(); ++i)
+    if (balancedDistribution)
+    {
+        std::uniform_int_distribution<int> emptyVehiclesDist(0, maxVehicles - 1); 
+        int emptyVehicles = emptyVehiclesDist(rng);
+    
+        std::vector<bool> isVehicleEmpty(maxVehicles, false);
+        for (int i = 0; i < emptyVehicles; ++i)
         {
-            offspring[v].push_back(child[idx++]);
+            isVehicleEmpty[i] = true;
+        }
+        std::shuffle(isVehicleEmpty.begin(), isVehicleEmpty.end(), rng);
+    
+        int nonEmptyVehicles = maxVehicles - emptyVehicles;
+        if (nonEmptyVehicles <= 0)
+        {
+            std::cerr << "Error: All vehicles are empty. Adjusting empty vehicles count." << std::endl;
+            nonEmptyVehicles = 1;
+            emptyVehicles = maxVehicles - 1;
+            isVehicleEmpty.assign(maxVehicles, false);
+            for (int i = 0; i < emptyVehicles; ++i)
+            {
+                isVehicleEmpty[i] = true;
+            }
+            std::shuffle(isVehicleEmpty.begin(), isVehicleEmpty.end(), rng);
+        }
+    
+        int avgClientsPerVehicle = std::ceil(static_cast<double>(child.size()) / nonEmptyVehicles);
+        int assignedClients = 0;
+    
+        for (int v = 0; v < maxVehicles && idx < child.size(); ++v)
+        {
+            if (isVehicleEmpty[v])
+                continue;
+    
+            for (int i = 0; i < avgClientsPerVehicle && idx < child.size(); ++i)
+            {
+                offspring[v].push_back(child[idx++]);
+                assignedClients++;
+            }
+        }
+    
+        int vehicleIdx = 0;
+        while (idx < child.size())
+        {
+            if (!isVehicleEmpty[vehicleIdx % maxVehicles])
+            {
+                offspring[vehicleIdx % maxVehicles].push_back(child[idx++]);
+            }
+            vehicleIdx++;
         }
     }
-
-    // Przypisz pozostałych klientów do ostatniego pojazdu
-    while (idx < child.size())
+    else
     {
-        offspring[maxVehicles - 1].push_back(child[idx++]);
+        std::uniform_real_distribution<double> probDist(0.0, 1.0);
+        double emptyVehicleProbability = 0.3;
+
+        int avgClientsPerVehicle = std::ceil(static_cast<double>(child.size()) / maxVehicles);
+        int maxClientsForVehicle = 2 * avgClientsPerVehicle;
+
+        for (int v = 0; v < maxVehicles && idx < child.size(); ++v)
+        {
+            if (probDist(rng) < emptyVehicleProbability && maxVehicles - v > 1)
+            {
+                continue;
+            }
+
+            std::uniform_int_distribution<int> routeLengthDist(1, std::min(static_cast<int>(child.size() - idx), maxClientsForVehicle));
+            int routeLength = routeLengthDist(rng);
+
+            for (int i = 0; i < routeLength && idx < child.size(); ++i)
+            {
+                offspring[v].push_back(child[idx++]);
+            }
+        }
+
+        while (idx < child.size())
+        {
+            offspring[maxVehicles - 1].push_back(child[idx++]);
+        }
     }
-
-
-
-    // // Debugowanie tras potomka
-    // std::cout << "Offspring routes:" << std::endl;
-    // for (size_t v = 0; v < offspring.size(); ++v)
-    // {
-    //     std::cout << "Vehicle " << v + 1 << ": ";
-    //     for (int node : offspring[v])
-    //     {
-    //         std::cout << node << " ";
-    //     }
-    //     std::cout << std::endl;
-    // }
 
     return offspring;
 }
-
 
 
 void GeneticAlgorithm::twoOpt(std::vector<int> &route) const

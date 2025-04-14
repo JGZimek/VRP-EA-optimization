@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <numeric> // For std::accumulate
+#include <algorithm> 
 
 int main()
 {
@@ -58,6 +59,8 @@ int main()
     // Calculate the average cost.
     double averageCost = std::accumulate(results.begin(), results.end(), 0.0) / runs;
     std::cout << "Average cost over " << runs << " runs: " << averageCost << std::endl;
-
+    double bestCost = *std::min_element(results.begin(), results.end());
+    std::cout << "Best cost over " << runs << " runs: " << bestCost << std::endl;
+    
     return 0;
 }
