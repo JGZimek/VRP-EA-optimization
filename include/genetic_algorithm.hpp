@@ -57,7 +57,7 @@ public:
      *
      * @return A vector of node indices representing the best route.
      */
-    std::vector<int> getBestSolution() const;
+    std::vector<std::vector<int>> getBestSolution() const;
 
     /**
      * @brief Returns the cost of the best solution found so far.
@@ -67,11 +67,11 @@ public:
     double getBestSolutionCost() const;
 
 private:
-    VRP &vrp;                                 ///< Reference to the VRP instance.
-    std::vector<std::vector<int>> population; ///< Population of candidate solutions.
-    std::vector<int> bestSolution;            ///< Best solution found.
-    double bestCost;                          ///< Cost of the best solution.
-    mutable std::mt19937 rng;                 ///< Mersenne Twister random number generator (mutable to allow use in const methods).
+    VRP &vrp; ///< Reference to the VRP instance.
+    std::vector<std::vector<int>> bestSolution;
+    std::vector<std::vector<std::vector<int>>> population; ///< Best solution found.
+    double bestCost;                                       ///< Cost of the best solution.
+    mutable std::mt19937 rng;                              ///< Mersenne Twister random number generator (mutable to allow use in const methods).
 
     SelectionMethod selectionMethod; ///< Current selection method.
     int tournamentSize;              ///< Tournament size for tournament selection.
@@ -81,7 +81,7 @@ private:
      * @param solution A vector of node indices representing a route.
      * @return The computed cost of the route.
      */
-    double evaluateSolution(const std::vector<int> &solution) const;
+    double evaluateSolution(const std::vector<std::vector<int>> &routes) const;
 
     /**
      * @brief Performs reproduction to generate a new generation.
@@ -96,7 +96,7 @@ private:
      *
      * @return A vector of node indices representing the selected parent.
      */
-    std::vector<int> selectParent() const;
+    std::vector<std::vector<int>> selectParent() const;
 
     /**
      * @brief Implements tournament selection.
@@ -105,7 +105,7 @@ private:
      *
      * @return The selected parent's gene (route).
      */
-    std::vector<int> tournamentSelection() const;
+    std::vector<std::vector<int>> tournamentSelection() const;
 
     /**
      * @brief Implements roulette selection.
@@ -115,7 +115,7 @@ private:
      *
      * @return The selected parent's gene (route).
      */
-    std::vector<int> rouletteSelection() const;
+    std::vector<std::vector<int>> rouletteSelection() const;
 
     /**
      * @brief Performs PMX (Partially Mapped Crossover) between two parent solutions.
@@ -127,7 +127,7 @@ private:
      * @param parent2 The second parent solution.
      * @return An offspring solution generated using PMX.
      */
-    std::vector<int> pmxCrossover(const std::vector<int> &parent1, const std::vector<int> &parent2) const;
+    std::vector<std::vector<int>> pmxCrossover(const std::vector<std::vector<int>> &parent1, const std::vector<std::vector<int>> &parent2) const;
 
     /**
      * @brief Performs a simple mutation on a solution by swapping two random customer nodes.
@@ -136,7 +136,9 @@ private:
      *
      * @param solution The solution to be mutated.
      */
-    void mutate(std::vector<int> &solution) const;
+    void mutate(std::vector<std::vector<int>> &routes) const;
+
+    void twoOpt(std::vector<int> &route) const;
 };
 
 #endif // GENETIC_ALGORITHM_HPP
