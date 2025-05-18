@@ -138,6 +138,13 @@ private:
      */
     void mutate(std::vector<std::vector<int>> &routes) const;
 
+    /**
+     * @brief Applies the 2-opt local search algorithm to improve a given route.
+     *
+     * The algorithm iteratively swaps two edges in the route to reduce the total cost.
+     *
+     * @param route The route to be improved.
+     */
     void twoOpt(std::vector<int> &route) const;
 };
 
