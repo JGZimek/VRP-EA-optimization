@@ -116,8 +116,9 @@ double VRP::distance(const Node &a, const Node &b) const
 
 double VRP::computeRouteCost(const std::vector<int> &route) const
 {
-    if (route.empty())
+    if (route.empty()) {
         return 0.0;
+    }
 
     double totalCost = 0.0;
     totalCost += distance(nodes[0], nodes[route[0]]);
