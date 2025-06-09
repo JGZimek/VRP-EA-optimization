@@ -10,9 +10,14 @@
 #include <unordered_set>
 #include <unordered_map>
 
-GeneticAlgorithm::GeneticAlgorithm(VRP &vrp, SelectionMethod selMethod, int tourSize)
+GeneticAlgorithm::GeneticAlgorithm(VRP &vrp,
+                                   SelectionMethod selMethod,
+                                   int tourSize,
+                                   double crossoverProb,
+                                   double mutationProb)
     : vrp(vrp), bestCost(std::numeric_limits<double>::max()),
-      selectionMethod(selMethod), tournamentSize(tourSize)
+      selectionMethod(selMethod), tournamentSize(tourSize),
+      crossoverProb(crossoverProb), mutationProb(mutationProb)
 {
     rng.seed(std::chrono::steady_clock::now().time_since_epoch().count());
 }
@@ -334,8 +339,8 @@ void GeneticAlgorithm::twoOpt(std::vector<int> &route) const
 
 void GeneticAlgorithm::reproduce()
 {
-    double crossoverProbability = 0.85;
-    double mutationProbability = 0.1;
+    double crossoverProbability = crossoverProb;
+    double mutationProbability = mutationProb;
     double twoOptProbability = 0.1;
     double forBestSolutiuonsTwoOptProbability = 0.5;
 
