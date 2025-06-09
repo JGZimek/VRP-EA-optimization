@@ -34,3 +34,4 @@
 # CMake files
 /build
 /bin
+/output
