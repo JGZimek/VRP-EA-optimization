@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <fstream>
 #include <filesystem>
+#include <limits> // For std::numeric_limits
 
 int main()
 {
@@ -25,8 +26,6 @@ int main()
 
     const int runs = 10;         // Number of runs
     std::vector<double> results; // Store the results of each run
-    const int runs = 10;
-    std::vector<double> results;
     double bestCost = std::numeric_limits<double>::max();
     std::vector<std::vector<int>> bestSolutionOverall;
 
@@ -46,7 +45,6 @@ int main()
         auto bestSolution = ga.getBestSolution();
 
         std::ofstream routeFile("output/run_" + std::to_string(i + 1) + "_routes.txt");
-
         for (size_t vehicle = 0; vehicle < bestSolution.size(); ++vehicle)
         {
             const auto &route = bestSolution[vehicle];
@@ -65,8 +63,11 @@ int main()
             else
             {
                 std::cout << "Vehicle " << (vehicle + 1) << " has no assigned route." << std::endl;
-                routeFile << "Vehicle " << (vehicle + 1) << ":" << "\n";
+                routeFile << "Vehicle " << (vehicle + 1) << ":\n";
             }
+        }
+        routeFile.close();
+
         if (cost < bestCost)
         {
             bestCost = cost;
@@ -74,7 +75,7 @@ int main()
         }
     }
 
-    std::cout << "Best solution (routes):" << std::endl;
+    std::cout << "\nBest solution over all runs (routes):" << std::endl;
     for (size_t vehicle = 0; vehicle < bestSolutionOverall.size(); ++vehicle)
     {
         const auto &route = bestSolutionOverall[vehicle];
@@ -87,11 +88,6 @@ int main()
             }
             std::cout << std::endl;
         }
-        else
-        {
-            // std::cout << "Vehicle " << (vehicle + 1) << " has no assigned route." << std::endl;
-        }
-        routeFile.close();
     }
 
     double averageCost = std::accumulate(results.begin(), results.end(), 0.0) / runs;
