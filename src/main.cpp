@@ -10,10 +10,8 @@
 int main()
 {
     VRP vrp;
-    // Load VRP instance data from the Solomon instance file.
     vrp.loadData("data/C101.txt");
 
-    // Check if data has been loaded.
     if (vrp.getNodes().empty())
     {
         std::cerr << "No VRP data loaded. Exiting..." << std::endl;
@@ -27,16 +25,18 @@ int main()
 
     const int runs = 10;         // Number of runs
     std::vector<double> results; // Store the results of each run
+    const int runs = 10;
+    std::vector<double> results;
+    double bestCost = std::numeric_limits<double>::max();
+    std::vector<std::vector<int>> bestSolutionOverall;
 
     for (int i = 0; i < runs; ++i)
     {
-        // Run the genetic algorithm.
         GeneticAlgorithm ga(vrp);
         ga.initializePopulation(50);
         ga.run(100);
 
-        // Retrieve the best solution cost.
-        double cost = ga.getBestSolutionCost(); // Assuming this method exists to get the cost.
+        double cost = ga.getBestSolutionCost();
         results.push_back(cost);
 
         resultsFile << (i + 1) << "," << cost << "\n";
@@ -67,14 +67,35 @@ int main()
                 std::cout << "Vehicle " << (vehicle + 1) << " has no assigned route." << std::endl;
                 routeFile << "Vehicle " << (vehicle + 1) << ":" << "\n";
             }
+        if (cost < bestCost)
+        {
+            bestCost = cost;
+            bestSolutionOverall = ga.getBestSolution();
+        }
+    }
+
+    std::cout << "Best solution (routes):" << std::endl;
+    for (size_t vehicle = 0; vehicle < bestSolutionOverall.size(); ++vehicle)
+    {
+        const auto &route = bestSolutionOverall[vehicle];
+        if (!route.empty())
+        {
+            std::cout << "Vehicle " << (vehicle + 1) << " route: ";
+            for (int node : route)
+            {
+                std::cout << node << " ";
+            }
+            std::cout << std::endl;
+        }
+        else
+        {
+            // std::cout << "Vehicle " << (vehicle + 1) << " has no assigned route." << std::endl;
         }
         routeFile.close();
     }
 
-    // Calculate the average cost.
     double averageCost = std::accumulate(results.begin(), results.end(), 0.0) / runs;
     std::cout << "Average cost over " << runs << " runs: " << averageCost << std::endl;
-    double bestCost = *std::min_element(results.begin(), results.end());
     std::cout << "Best cost over " << runs << " runs: " << bestCost << std::endl;
 
     resultsFile << "average," << averageCost << "\n";
