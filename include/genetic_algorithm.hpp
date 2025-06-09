@@ -30,7 +30,16 @@ public:
      * @param selMethod Selection method to be used (default Tournament).
      * @param tourSize Tournament size for tournament selection (default 3).
      */
-    explicit GeneticAlgorithm(VRP &vrp, SelectionMethod selMethod = SelectionMethod::Tournament, int tourSize = 3);
+    explicit GeneticAlgorithm(VRP &vrp,
+                              SelectionMethod selMethod = SelectionMethod::Tournament,
+                              int tourSize = 3,
+                              double crossoverProb = 0.85,
+                              double mutationProb = 0.1);
+
+    /// Set crossover probability used during reproduction
+    void setCrossoverProbability(double p) { crossoverProb = p; }
+    /// Set mutation probability used during reproduction
+    void setMutationProbability(double p) { mutationProb = p; }
 
     /// Default destructor.
     ~GeneticAlgorithm() = default;
@@ -75,6 +84,8 @@ private:
 
     SelectionMethod selectionMethod; ///< Current selection method.
     int tournamentSize;              ///< Tournament size for tournament selection.
+    double crossoverProb;            ///< Probability of performing crossover.
+    double mutationProb;             ///< Probability of performing mutation.
     /**
      * @brief Evaluates the cost of a given solution.
      *

@@ -7,6 +7,74 @@
 #include <fstream>
 #include <filesystem>
 #include <limits> // For std::numeric_limits
+#include <sstream>
+
+namespace fs = std::filesystem;
+
+static void runScenario(VRP &vrp,
+                        int generations,
+                        int population,
+                        SelectionMethod method,
+                        double crossoverProb,
+                        double mutationProb,
+                        const std::string &dirName)
+{
+    fs::create_directories(dirName);
+
+    std::ofstream cfg(dirName + "/config.json");
+    cfg << "{\n"
+        << "  \"generations\": " << generations << ",\n"
+        << "  \"population\": " << population << ",\n"
+        << "  \"selection\": \"" << (method == SelectionMethod::Tournament ? "tournament" : "roulette") << "\",\n"
+        << "  \"crossover\": " << crossoverProb << ",\n"
+        << "  \"mutation\": " << mutationProb << "\n";
+    cfg << "}\n";
+    cfg.close();
+
+    std::ofstream resultsFile(dirName + "/results.csv");
+    resultsFile << "run,cost\n";
+
+    const int runs = 10;
+    std::vector<double> results;
+    double bestCost = std::numeric_limits<double>::max();
+    std::vector<std::vector<int>> bestSolutionOverall;
+
+    for (int i = 0; i < runs; ++i)
+    {
+        GeneticAlgorithm ga(vrp, method, 3, crossoverProb, mutationProb);
+        ga.initializePopulation(population);
+        ga.run(generations);
+
+        double cost = ga.getBestSolutionCost();
+        results.push_back(cost);
+        resultsFile << (i + 1) << "," << cost << "\n";
+
+        auto bestSolution = ga.getBestSolution();
+        std::ofstream routeFile(dirName + "/run_" + std::to_string(i + 1) + "_routes.txt");
+        for (size_t vehicle = 0; vehicle < bestSolution.size(); ++vehicle)
+        {
+            const auto &route = bestSolution[vehicle];
+            routeFile << "Vehicle " << (vehicle + 1) << ":";
+            for (int node : route)
+            {
+                routeFile << ' ' << node;
+            }
+            routeFile << "\n";
+        }
+        routeFile.close();
+
+        if (cost < bestCost)
+        {
+            bestCost = cost;
+            bestSolutionOverall = bestSolution;
+        }
+    }
+
+    double averageCost = std::accumulate(results.begin(), results.end(), 0.0) / runs;
+    resultsFile << "average," << averageCost << "\n";
+    resultsFile << "best," << bestCost << "\n";
+    resultsFile.close();
+}
 
 int main()
 {
@@ -19,84 +87,34 @@ int main()
         return 1;
     }
 
-    // Prepare output directory and file for results
-    std::filesystem::create_directories("output");
-    std::ofstream resultsFile("output/results.csv");
-    resultsFile << "run,cost\n";
+    fs::create_directories("output");
 
-    const int runs = 10;         // Number of runs
-    std::vector<double> results; // Store the results of each run
-    double bestCost = std::numeric_limits<double>::max();
-    std::vector<std::vector<int>> bestSolutionOverall;
-
-    for (int i = 0; i < runs; ++i)
+    for (int gens : {50, 100, 150})
     {
-        GeneticAlgorithm ga(vrp);
-        ga.initializePopulation(50);
-        ga.run(100);
-
-        double cost = ga.getBestSolutionCost();
-        results.push_back(cost);
-
-        resultsFile << (i + 1) << "," << cost << "\n";
-
-        std::cout << "Run #" << (i + 1) << " cost: " << cost << std::endl;
-        std::cout << "Best solution (routes):" << std::endl;
-        auto bestSolution = ga.getBestSolution();
-
-        std::ofstream routeFile("output/run_" + std::to_string(i + 1) + "_routes.txt");
-        for (size_t vehicle = 0; vehicle < bestSolution.size(); ++vehicle)
-        {
-            const auto &route = bestSolution[vehicle];
-            if (!route.empty())
-            {
-                std::cout << "Vehicle " << (vehicle + 1) << " route: ";
-                routeFile << "Vehicle " << (vehicle + 1) << ":";
-                for (int node : route)
-                {
-                    std::cout << node << " ";
-                    routeFile << ' ' << node;
-                }
-                std::cout << std::endl;
-                routeFile << "\n";
-            }
-            else
-            {
-                std::cout << "Vehicle " << (vehicle + 1) << " has no assigned route." << std::endl;
-                routeFile << "Vehicle " << (vehicle + 1) << ":\n";
-            }
-        }
-        routeFile.close();
-
-        if (cost < bestCost)
-        {
-            bestCost = cost;
-            bestSolutionOverall = ga.getBestSolution();
-        }
+        runScenario(vrp, gens, 50, SelectionMethod::Tournament, 0.85, 0.1,
+                    "output/generations_" + std::to_string(gens));
     }
 
-    std::cout << "\nBest solution over all runs (routes):" << std::endl;
-    for (size_t vehicle = 0; vehicle < bestSolutionOverall.size(); ++vehicle)
+    for (int pop : {30, 50, 80})
     {
-        const auto &route = bestSolutionOverall[vehicle];
-        if (!route.empty())
-        {
-            std::cout << "Vehicle " << (vehicle + 1) << " route: ";
-            for (int node : route)
-            {
-                std::cout << node << " ";
-            }
-            std::cout << std::endl;
-        }
+        runScenario(vrp, 100, pop, SelectionMethod::Tournament, 0.85, 0.1,
+                    "output/population_" + std::to_string(pop));
     }
 
-    double averageCost = std::accumulate(results.begin(), results.end(), 0.0) / runs;
-    std::cout << "Average cost over " << runs << " runs: " << averageCost << std::endl;
-    std::cout << "Best cost over " << runs << " runs: " << bestCost << std::endl;
+    runScenario(vrp, 100, 50, SelectionMethod::Tournament, 0.85, 0.1,
+                "output/selection_tournament");
+    runScenario(vrp, 100, 50, SelectionMethod::Roulette, 0.85, 0.1,
+                "output/selection_roulette");
 
-    resultsFile << "average," << averageCost << "\n";
-    resultsFile << "best," << bestCost << "\n";
-    resultsFile.close();
+    std::vector<std::pair<double, double>> probs = {
+        {0.05, 0.7}, {0.1, 0.85}, {0.2, 0.95}};
+    for (const auto &pr : probs)
+    {
+        std::ostringstream dir;
+        dir << "output/mutation_" << pr.first << "_crossover_" << pr.second;
+        runScenario(vrp, 100, 50, SelectionMethod::Tournament, pr.second, pr.first,
+                    dir.str());
+    }
 
     return 0;
 }
